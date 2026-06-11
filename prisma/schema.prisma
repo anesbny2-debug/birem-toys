@@ -1,0 +1,324 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User Models
+model User {
+  id                String      @id @default(cuid())
+  email             String      @unique
+  password          String
+  name              String
+  role              String      @default("admin") // admin, moderator
+  isActive          Boolean     @default(true)
+  lastLogin         DateTime?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@map("users")
+}
+
+// Category Model
+model Category {
+  id                String      @id @default(cuid())
+  nameAr            String
+  nameFr            String
+  nameEn            String
+  slug              String      @unique
+  description       String?
+  descriptionAr     String?
+  descriptionFr     String?
+  descriptionEn     String?
+  image             String?
+  icon              String?
+  order             Int         @default(0)
+  isActive          Boolean     @default(true)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  products          Product[]
+
+  @@map("categories")
+}
+
+// Product Model
+model Product {
+  id                String      @id @default(cuid())
+  nameAr            String
+  nameFr            String
+  nameEn            String
+  slug              String      @unique
+  descriptionAr     String
+  descriptionFr     String
+  descriptionEn     String
+  price             Float
+  originalPrice     Float?
+  currency          String      @default("DZD")
+  category          Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  categoryId        String
+  stock             Int         @default(0)
+  isAvailable       Boolean     @default(true)
+  isFeatured        Boolean     @default(false)
+  isNewArrival      Boolean     @default(false)
+  isBestSeller      Boolean     @default(false)
+  images            ProductImage[]
+  rating            Float       @default(0)
+  reviewCount       Int         @default(0)
+  views             Int         @default(0)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  
+  reviews           Review[]
+  wishlists         Wishlist[]
+  cartItems         CartItem[]
+  orderItems        OrderItem[]
+
+  @@index([categoryId])
+  @@index([slug])
+  @@map("products")
+}
+
+// Product Images
+model ProductImage {
+  id                String      @id @default(cuid())
+  product           Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId         String
+  imageUrl          String
+  altText           String?
+  order             Int         @default(0)
+  createdAt         DateTime    @default(now())
+
+  @@index([productId])
+  @@map("product_images")
+}
+
+// Reviews and Ratings
+model Review {
+  id                String      @id @default(cuid())
+  product           Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId         String
+  customerName      String
+  customerEmail     String
+  rating            Int         @default(5)
+  commentAr         String?
+  commentFr         String?
+  commentEn         String?
+  isApproved        Boolean     @default(false)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@index([productId])
+  @@map("reviews")
+}
+
+// Wishlist
+model Wishlist {
+  id                String      @id @default(cuid())
+  sessionId         String
+  product           Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId         String
+  createdAt         DateTime    @default(now())
+
+  @@unique([sessionId, productId])
+  @@index([sessionId])
+  @@index([productId])
+  @@map("wishlists")
+}
+
+// Shopping Cart
+model Cart {
+  id                String      @id @default(cuid())
+  sessionId         String      @unique
+  items             CartItem[]
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@index([sessionId])
+  @@map("carts")
+}
+
+model CartItem {
+  id                String      @id @default(cuid())
+  cart              Cart        @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  cartId            String
+  product           Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId         String
+  quantity          Int         @default(1)
+  price             Float
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@index([cartId])
+  @@index([productId])
+  @@map("cart_items")
+}
+
+// Orders
+model Order {
+  id                String      @id @default(cuid())
+  orderNumber       String      @unique
+  customerName      String
+  customerEmail     String
+  customerPhone     String
+  address           String
+  city              String
+  postalCode        String?
+  country           String      @default("Algeria")
+  totalAmount       Float
+  currency          String      @default("DZD")
+  status            String      @default("pending") // pending, confirmed, shipped, delivered, cancelled
+  items             OrderItem[]
+  notes             String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@index([customerEmail])
+  @@index([status])
+  @@map("orders")
+}
+
+model OrderItem {
+  id                String      @id @default(cuid())
+  order             Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId           String
+  product           Product     @relation(fields: [productId], references: [id])
+  productId         String
+  quantity          Int
+  price             Float
+  createdAt         DateTime    @default(now())
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_items")
+}
+
+// Coupon/Discount
+model Coupon {
+  id                String      @id @default(cuid())
+  code              String      @unique
+  descriptionAr     String
+  descriptionFr     String
+  descriptionEn     String
+  type              String      // percentage, fixed
+  value             Float
+  maxUses           Int?
+  usedCount         Int         @default(0)
+  minOrderAmount    Float       @default(0)
+  maxDiscount       Float?
+  validFrom         DateTime
+  validUntil        DateTime
+  isActive          Boolean     @default(true)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@map("coupons")
+}
+
+// Banner/Promotion
+model Banner {
+  id                String      @id @default(cuid())
+  titleAr           String
+  titleFr           String
+  titleEn           String
+  subtitleAr        String?
+  subtitleFr        String?
+  subtitleEn        String?
+  image             String
+  mobileImage       String?
+  link              String?
+  order             Int         @default(0)
+  isActive          Boolean     @default(true)
+  validFrom         DateTime
+  validUntil        DateTime
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@map("banners")
+}
+
+// Settings
+model Setting {
+  id                String      @id @default(cuid())
+  key               String      @unique
+  value             String
+  type              String      @default("string") // string, number, boolean, json
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@map("settings")
+}
+
+// Newsletter Subscription
+model NewsletterSubscription {
+  id                String      @id @default(cuid())
+  email             String      @unique
+  isActive          Boolean     @default(true)
+  language          String      @default("ar")
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@map("newsletter_subscriptions")
+}
+
+// Page Content (FAQ, Terms, Privacy, etc.)
+model PageContent {
+  id                String      @id @default(cuid())
+  slug              String      @unique
+  titleAr           String
+  titleFr           String
+  titleEn           String
+  contentAr         String
+  contentFr         String
+  contentEn         String
+  seoTitleAr        String?
+  seoTitleFr        String?
+  seoTitleEn        String?
+  seoDescriptionAr  String?
+  seoDescriptionFr  String?
+  seoDescriptionEn  String?
+  isPublished       Boolean     @default(true)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@map("page_contents")
+}
+
+// Contact Form Submissions
+model ContactSubmission {
+  id                String      @id @default(cuid())
+  name              String
+  email             String
+  phone             String?
+  subject           String
+  messageAr         String?
+  messageFr         String?
+  messageEn         String?
+  status            String      @default("new") // new, read, replied
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@map("contact_submissions")
+}
+
+// Analytics
+model Analytics {
+  id                String      @id @default(cuid())
+  eventType         String      // page_view, product_view, add_to_cart, etc.
+  sessionId         String
+  userId            String?
+  productId         String?
+  metadata          String?
+  createdAt         DateTime    @default(now())
+
+  @@index([eventType])
+  @@index([sessionId])
+  @@index([createdAt])
+  @@map("analytics")
+}
